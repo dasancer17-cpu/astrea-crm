@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useTeam } from '@/hooks/useTeam'
 
 const NAV = [
   { href: '/dashboard',   icon: '▦', label: 'Dashboard'   },
@@ -10,17 +11,13 @@ const NAV = [
   { href: '/companies',   icon: '▣', label: 'Empresas'    },
   { href: '/deals',       icon: '▤', label: 'Pipeline'    },
   { href: '/activities',  icon: '◆', label: 'Actividades' },
-]
-
-const INTEGRATIONS = [
-  { name: 'HubSpot',    color: '#FF7A59', status: 'EN VIVO'  },
-  { name: 'Salesforce', color: '#00A1E0', status: 'CONECTAR' },
-  { name: 'Pipedrive',  color: '#6C9BCD', status: 'CONECTAR' },
+  { href: '/settings',    icon: '⚙', label: 'Equipo'      },
 ]
 
 export function Sidebar() {
-  const pathname = usePathname()
-  const router   = useRouter()
+  const pathname  = usePathname()
+  const router    = useRouter()
+  const { teamName, role } = useTeam()
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -35,21 +32,33 @@ export function Sidebar() {
       display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden',
     }}>
       {/* Logo */}
-      <div style={{padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10}}>
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{
           width: 28, height: 28, border: '1.5px solid var(--green)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--green)', flexShrink: 0,
         }}>A</div>
         <div>
-          <div style={{fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: '.16em', color: 'var(--tx)'}}>ASTREA</div>
-          <div style={{fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--t3)', letterSpacing: '.08em'}}>CRM OPS CENTER</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: '.16em', color: 'var(--tx)' }}>ASTREA</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--t3)', letterSpacing: '.08em' }}>CRM OPS CENTER</div>
         </div>
       </div>
 
+      {/* Team badge */}
+      {teamName && (
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'var(--gd)' }}>
+          <div style={{ fontSize: 9, color: 'var(--green)', fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+            {teamName}
+          </div>
+          <div style={{ fontSize: 8, color: 'var(--t3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', marginTop: 1 }}>
+            {role === 'owner' ? 'Propietario' : role === 'admin' ? 'Admin' : 'Miembro'}
+          </div>
+        </div>
+      )}
+
       {/* Nav */}
-      <div style={{overflowY: 'auto', flex: 1}}>
-        <div style={{fontSize: 9, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--t3)', padding: '14px 20px 4px'}}>
+      <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--t3)', padding: '14px 20px 4px' }}>
           Navegación
         </div>
         {NAV.map(n => {
@@ -63,41 +72,25 @@ export function Sidebar() {
               border: active ? '1px solid rgba(0,232,122,.18)' : '1px solid transparent',
               margin: '1px 8px', transition: 'all .1s',
             }}>
-              <span style={{fontSize: 13, width: 14, textAlign: 'center'}}>{n.icon}</span>
+              <span style={{ fontSize: 13, width: 14, textAlign: 'center' }}>{n.icon}</span>
               <span>{n.label}</span>
             </Link>
           )
         })}
 
-        <div style={{height: 1, background: 'var(--border)', margin: '10px 12px'}}/>
-
-        <div style={{fontSize: 9, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--t3)', padding: '4px 20px'}}>
-          Integraciones
-        </div>
-        {INTEGRATIONS.map(i => (
-          <div key={i.name} style={{display: 'flex', alignItems: 'center', gap: 7, padding: '5px 20px', fontSize: 11, color: 'var(--t2)'}}>
-            <div style={{width: 6, height: 6, borderRadius: '50%', background: i.color, flexShrink: 0}}/>
-            <span style={{flex: 1}}>{i.name}</span>
-            <span style={{
-              fontFamily: 'var(--mono)', fontSize: 9,
-              color: i.status === 'EN VIVO' ? 'var(--green)' : 'var(--t3)',
-            }}>{i.status}</span>
-          </div>
-        ))}
-
         {/* Pipeline health */}
-        <div style={{margin: '12px', padding: '12px', background: 'var(--s2)', border: '1px solid var(--border)'}}>
-          <div style={{fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--t3)', marginBottom: 6}}>Salud Pipeline</div>
-          <div style={{fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: 'var(--green)'}}>98.2%</div>
-          <div style={{height: 3, background: 'var(--s3)', marginTop: 6}}>
-            <div style={{width: '98.2%', height: '100%', background: 'var(--green)'}}/>
+        <div style={{ margin: '12px', padding: '12px', background: 'var(--s2)', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--t3)', marginBottom: 6 }}>Salud Pipeline</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: 'var(--green)' }}>98.2%</div>
+          <div style={{ height: 3, background: 'var(--s3)', marginTop: 6 }}>
+            <div style={{ width: '98.2%', height: '100%', background: 'var(--green)' }}/>
           </div>
         </div>
       </div>
 
       {/* Logout */}
-      <div style={{borderTop: '1px solid var(--border)', padding: '10px 12px'}}>
-        <button onClick={handleLogout} className="btn btn-ghost" style={{width: '100%', justifyContent: 'center', fontSize: 11}}>
+      <div style={{ borderTop: '1px solid var(--border)', padding: '10px 12px' }}>
+        <button onClick={handleLogout} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', fontSize: 11 }}>
           ⎋ Cerrar sesión
         </button>
       </div>

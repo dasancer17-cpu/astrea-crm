@@ -6,6 +6,7 @@ import { Topbar } from '@/components/Topbar'
 import { Modal } from '@/components/Modal'
 import { EmptyState } from '@/components/EmptyState'
 import { ACTIVITY_META, relativeTime } from '@/lib/utils'
+import { useTeam } from '@/hooks/useTeam'
 
 const TYPES = Object.entries(ACTIVITY_META) as [keyof typeof ACTIVITY_META, { icon: string; label: string }][]
 
@@ -128,6 +129,7 @@ function groupByDate(activities: Activity[]): [string, Activity[]][] {
 
 export default function ActivitiesPage() {
   const supabase = createClient()
+  const { teamId } = useTeam()
   const [activities, setActivities] = useState<Activity[]>([])
   const [contacts,   setContacts]   = useState<Contact[]>([])
   const [deals,      setDeals]      = useState<Deal[]>([])
@@ -163,7 +165,7 @@ export default function ActivitiesPage() {
 
   const handleCreate = async (data: ActivityInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('activities').insert([{ ...data, user_id: user!.id }] as any)
+    await supabase.from('activities').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
     setModal(false)
     load()
   }

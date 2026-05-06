@@ -12,6 +12,7 @@ import { Topbar } from '@/components/Topbar'
 import { Modal } from '@/components/Modal'
 
 import { fmt, STAGE_META } from '@/lib/utils'
+import { useTeam } from '@/hooks/useTeam'
 
 const STAGES = Object.keys(STAGE_META) as DealStage[]
 
@@ -208,6 +209,7 @@ function DealForm({
 
 export default function DealsPage() {
   const supabase = createClient()
+  const { teamId } = useTeam()
   const [deals,    setDeals]    = useState<Deal[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [companies,setCompanies]= useState<Company[]>([])
@@ -272,7 +274,7 @@ export default function DealsPage() {
 
   const handleCreate = async (data: DealInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('deals').insert([{ ...data, user_id: user!.id }] as any)
+    await supabase.from('deals').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
     setModal(null)
     load()
   }

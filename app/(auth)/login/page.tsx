@@ -1,11 +1,14 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function LoginPage() {
-  const router = useRouter()
+function LoginForm() {
+  const router  = useRouter()
+  const params  = useSearchParams()
+  const redirect = params.get('redirect') ?? '/'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,7 +21,7 @@ export default function LoginPage() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
-    router.push('/')
+    router.push(redirect)
     router.refresh()
   }
 
@@ -78,5 +81,13 @@ export default function LoginPage() {
         .auth-link:hover{text-decoration:underline;}
       `}</style>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#070707' }}/>}>
+      <LoginForm />
+    </Suspense>
   )
 }

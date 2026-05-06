@@ -6,6 +6,7 @@ import { Topbar } from '@/components/Topbar'
 import { Modal } from '@/components/Modal'
 import { EmptyState } from '@/components/EmptyState'
 import { initials, relativeTime, SOURCE_LABELS } from '@/lib/utils'
+import { useTeam } from '@/hooks/useTeam'
 
 const SOURCES = Object.entries(SOURCE_LABELS)
 const SIZES = ['1-50','51-200','201-1000','1000+']
@@ -116,6 +117,7 @@ function ContactForm({
 
 export default function ContactsPage() {
   const supabase = createClient()
+  const { teamId } = useTeam()
   const [contacts,  setContacts]  = useState<Contact[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -148,7 +150,7 @@ export default function ContactsPage() {
 
   const handleCreate = async (data: ContactInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('contacts').insert([{ ...data, user_id: user!.id }] as any)
+    await supabase.from('contacts').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
     setModal(null)
     load()
   }

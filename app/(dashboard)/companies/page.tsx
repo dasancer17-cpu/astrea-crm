@@ -6,6 +6,7 @@ import { Topbar } from '@/components/Topbar'
 import { Modal } from '@/components/Modal'
 import { EmptyState } from '@/components/EmptyState'
 import { initials, relativeTime } from '@/lib/utils'
+import { useTeam } from '@/hooks/useTeam'
 
 const INDUSTRIES = ['SaaS','FinTech','DevTools','E-commerce','Healthcare','Legal','Consulting','Retail','Manufacturing','Otro']
 const SIZES = ['1-50','51-200','201-1000','1000+']
@@ -87,6 +88,7 @@ function CompanyForm({
 
 export default function CompaniesPage() {
   const supabase = createClient()
+  const { teamId } = useTeam()
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -116,7 +118,7 @@ export default function CompaniesPage() {
 
   const handleCreate = async (data: CompanyInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('companies').insert([{ ...data, user_id: user!.id }] as any)
+    await supabase.from('companies').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
     setModal(null)
     load()
   }
