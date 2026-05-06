@@ -34,6 +34,11 @@ export default function SettingsPage() {
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [error,      setError]      = useState('')
 
+  const [myProfile,   setMyProfile]   = useState<{ email: string; full_name: string | null } | null>(null)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue,   setNameValue]   = useState('')
+  const [savingName,  setSavingName]  = useState(false)
+
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
@@ -59,6 +64,13 @@ export default function SettingsPage() {
       ;(profiles as Profile[] | null)?.forEach(p => {
         map[p.id] = p.full_name || p.email || p.id.slice(0, 8) + '…'
       })
+    }
+
+    // Load own profile
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: prof } = await supabase.from('profiles').select('email, full_name').eq('id', user.id).single()
+      if (prof) { setMyProfile(prof as any); setNameValue((prof as any).full_name ?? '') }
     }
 
     setMembers(members)
@@ -106,6 +118,40 @@ export default function SettingsPage() {
       <Topbar title="Configuración" subtitle="Gestiona tu equipo e invitaciones"/>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+
+        {/* My profile */}
+        {myProfile && (
+          <div className="crm-card" style={{ marginBottom: 1 }}>
+            <div className="crm-card-header">
+              <span className="crm-card-title">Mi perfil</span>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12, fontFamily: 'var(--mono)' }}>{myProfile.email}</div>
+              {editingName ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="form-input" style={{ flex: 1 }} placeholder="Tu nombre completo"
+                    value={nameValue} onChange={e => setNameValue(e.target.value)}/>
+                  <button className="btn btn-primary" disabled={savingName} onClick={async () => {
+                    setSavingName(true)
+                    const { data: { user } } = await supabase.auth.getUser()
+                    await supabase.from('profiles').update({ full_name: nameValue || null }).eq('id', user!.id)
+                    setSavingName(false)
+                    setEditingName(false)
+                    load()
+                  }}>{savingName ? '⟳' : '▸ Guardar'}</button>
+                  <button className="btn btn-ghost" onClick={() => setEditingName(false)}>Cancelar</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
+                    {myProfile.full_name || <span style={{ color: 'var(--t3)', fontStyle: 'italic' }}>Sin nombre</span>}
+                  </span>
+                  <button className="btn btn-ghost" style={{ fontSize: 10, padding: '3px 8px' }} onClick={() => setEditingName(true)}>✎ Editar</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Team info */}
         <div className="crm-card" style={{ marginBottom: 1 }}>

@@ -294,8 +294,36 @@ export default function DealsPage() {
     load()
   }
 
+  const [search,       setSearch]       = useState('')
+  const [filterAssigned, setFilterAssigned] = useState('')
+  const [filterClose,    setFilterClose]    = useState<'all' | 'overdue' | 'week' | 'month'>('all')
+
+  const assignees = Array.from(new Set(deals.map(d => d.assigned_to).filter(Boolean))) as string[]
+
+  const filterDeal = (d: Deal) => {
+    if (search && !d.title.toLowerCase().includes(search.toLowerCase())) return false
+    if (filterAssigned && d.assigned_to !== filterAssigned) return false
+    if (filterClose !== 'all' && d.expected_close) {
+      const close = new Date(d.expected_close)
+      const now   = new Date()
+      const diff  = (close.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      if (filterClose === 'overdue' && diff >= 0) return false
+      if (filterClose === 'week'    && (diff < 0 || diff > 7)) return false
+      if (filterClose === 'month'   && (diff < 0 || diff > 30)) return false
+    }
+    return true
+  }
+
+  const filteredDeals = deals.filter(filterDeal)
+  const filteredByStage = STAGES.reduce((acc, s) => {
+    acc[s] = filteredDeals.filter(d => d.stage === s)
+    return acc
+  }, {} as Record<DealStage, Deal[]>)
+
   const totalPipeline = deals.filter(d => d.stage !== 'ganado' && d.stage !== 'perdido').reduce((s,d) => s+d.value, 0)
   const activeDeal = activeId ? deals.find(d => d.id === activeId) : null
+
+  const hasFilters = search || filterAssigned || filterClose !== 'all'
 
   return (
     <>
@@ -309,6 +337,35 @@ export default function DealsPage() {
         }
       />
 
+      {/* Filter bar */}
+      <div style={{ padding: '8px 24px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--surface)', flexWrap: 'wrap' }}>
+        <input className="form-input" style={{ maxWidth: 220, padding: '5px 8px', fontSize: 11 }}
+          placeholder="Buscar deal..." value={search} onChange={e => setSearch(e.target.value)}/>
+        <select className="form-select" style={{ width: 'auto', padding: '5px 8px', fontSize: 11 }}
+          value={filterAssigned} onChange={e => setFilterAssigned(e.target.value)}>
+          <option value="">Todos los asignados</option>
+          {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select className="form-select" style={{ width: 'auto', padding: '5px 8px', fontSize: 11 }}
+          value={filterClose} onChange={e => setFilterClose(e.target.value as any)}>
+          <option value="all">Cualquier cierre</option>
+          <option value="overdue">Vencidos</option>
+          <option value="week">Próximos 7 días</option>
+          <option value="month">Próximos 30 días</option>
+        </select>
+        {hasFilters && (
+          <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 8px' }}
+            onClick={() => { setSearch(''); setFilterAssigned(''); setFilterClose('all') }}>
+            ✕ Limpiar
+          </button>
+        )}
+        {hasFilters && (
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--t3)', marginLeft: 4 }}>
+            {filteredDeals.length} de {deals.length} deals
+          </span>
+        )}
+      </div>
+
       {loading ? (
         <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--t3)',fontFamily:'var(--mono)',fontSize:11}}>
           ⟳ Cargando pipeline...
@@ -321,12 +378,12 @@ export default function DealsPage() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:1,minHeight:'calc(100vh - 120px)'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:1,minHeight:'calc(100vh - 160px)'}}>
               {STAGES.map(stage => (
                 <KanbanColumn
                   key={stage}
                   stage={stage}
-                  deals={dealsByStage[stage]}
+                  deals={hasFilters ? filteredByStage[stage] : dealsByStage[stage]}
                   color={STAGE_META[stage].color}
                   onAdd={() => { setDefaultStage(stage); setSelected(null); setModal('create') }}
                   onCardClick={d => { setSelected(d); setModal('edit') }}
