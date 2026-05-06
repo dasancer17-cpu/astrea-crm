@@ -16,20 +16,10 @@ export default function OnboardingPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
 
-    const { data: team, error: te } = await supabase
-      .from('teams')
-      .insert([{ name: teamName, created_by: user.id }])
-      .select()
-      .single()
-    if (te || !team) { setError(te?.message ?? 'Error al crear equipo'); setLoading(false); return }
-
-    const { error: me } = await supabase
-      .from('team_members')
-      .insert([{ team_id: team.id, user_id: user.id, role: 'owner', status: 'active', joined_at: new Date().toISOString() }])
-    if (me) { setError(me.message); setLoading(false); return }
+    const { data, error: te } = await supabase.rpc('create_team', { p_name: teamName })
+    if (te) { setError(te.message); setLoading(false); return }
+    if (!data) { setError('Error al crear equipo'); setLoading(false); return }
 
     router.push('/dashboard')
     router.refresh()
