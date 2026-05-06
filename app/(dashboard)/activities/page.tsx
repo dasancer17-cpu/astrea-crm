@@ -7,6 +7,7 @@ import { Modal } from '@/components/Modal'
 import { EmptyState } from '@/components/EmptyState'
 import { ACTIVITY_META, relativeTime } from '@/lib/utils'
 import { useTeam } from '@/hooks/useTeam'
+import { useProject } from '@/hooks/useProject'
 
 const TYPES = Object.entries(ACTIVITY_META) as [keyof typeof ACTIVITY_META, { icon: string; label: string }][]
 
@@ -119,6 +120,7 @@ function groupByDate(activities: Activity[]): [string, Activity[]][] {
 export default function ActivitiesPage() {
   const supabase = createClient()
   const { teamId } = useTeam()
+  const { activeProject } = useProject()
   const [activities, setActivities] = useState<Activity[]>([])
   const [contacts,   setContacts]   = useState<Contact[]>([])
   const [deals,      setDeals]      = useState<Deal[]>([])
@@ -130,8 +132,10 @@ export default function ActivitiesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    let q = supabase.from('activities').select('*').order('created_at', { ascending: false })
+    if (activeProject) q = q.eq('project_id', activeProject.id)
     const [{ data: acts }, { data: cts }, { data: ds }, { data: cos }] = await Promise.all([
-      supabase.from('activities').select('*').order('created_at', { ascending: false }),
+      q,
       supabase.from('contacts').select('*').order('first_name'),
       supabase.from('deals').select('*').order('title'),
       supabase.from('companies').select('*').order('name'),
@@ -141,7 +145,7 @@ export default function ActivitiesPage() {
     setDeals((ds as Deal[] | null) ?? [])
     setCompanies((cos as Company[] | null) ?? [])
     setLoading(false)
-  }, [])
+  }, [activeProject])
 
   useEffect(() => { load() }, [load])
 
@@ -154,7 +158,7 @@ export default function ActivitiesPage() {
 
   const handleCreate = async (data: Omit<ActivityInsert, 'user_id'>) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('activities').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
+    await supabase.from('activities').insert([{ ...data, user_id: user!.id, team_id: teamId || null, project_id: activeProject?.id || null }] as any)
     setModal(null)
     load()
   }
@@ -186,7 +190,7 @@ export default function ActivitiesPage() {
   return (
     <>
       <Topbar
-        title="Actividades"
+        title={activeProject ? `Actividades · ${activeProject.name}` : 'Actividades'}
         subtitle={`${activities.length} actividades registradas`}
         actions={<button className="btn btn-primary" onClick={() => { setSelected(null); setModal('create') }}>+ Nueva actividad</button>}
       />

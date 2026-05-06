@@ -8,6 +8,8 @@ import { Modal } from '@/components/Modal'
 import { EmptyState } from '@/components/EmptyState'
 import { initials, relativeTime, SOURCE_LABELS } from '@/lib/utils'
 import { useTeam } from '@/hooks/useTeam'
+import { useProject } from '@/hooks/useProject'
+import type { Project } from '@/lib/supabase/types'
 
 const SOURCES = Object.entries(SOURCE_LABELS)
 
@@ -18,10 +20,12 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 function ContactForm({
-  initial, companies, onSave, onClose,
+  initial, companies, projects, defaultProjectId, onSave, onClose,
 }: {
   initial?: Partial<Contact>
   companies: Company[]
+  projects: Project[]
+  defaultProjectId?: string
   onSave: (data: ContactInsert) => Promise<void>
   onClose: () => void
 }) {
@@ -29,7 +33,8 @@ function ContactForm({
     first_name: initial?.first_name ?? '', last_name: initial?.last_name ?? '',
     email: initial?.email ?? '', phone: initial?.phone ?? '',
     title: initial?.title ?? '', company_id: initial?.company_id ?? '',
-    lead_score: initial?.lead_score ?? 0, source: initial?.source ?? '', notes: initial?.notes ?? '',
+    lead_score: initial?.lead_score ?? 0, source: initial?.source ?? '',
+    notes: initial?.notes ?? '', project_id: initial?.project_id ?? defaultProjectId ?? '',
   })
   const [saving, setSaving] = useState(false)
   const set = (k: string, v: string | number) => setF(p => ({ ...p, [k]: v }))
@@ -37,7 +42,7 @@ function ContactForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    await onSave({ ...f, company_id: f.company_id || null, source: f.source || null } as ContactInsert)
+    await onSave({ ...f, company_id: f.company_id || null, source: f.source || null, project_id: f.project_id || null } as ContactInsert)
     setSaving(false)
   }
 
@@ -65,6 +70,15 @@ function ContactForm({
             </select>
           </div>
           <div><label className="form-label">Lead score (0-100)</label><input className="form-input" type="number" min={0} max={100} value={f.lead_score} onChange={e => set('lead_score', parseInt(e.target.value) || 0)}/></div>
+          {projects.length > 0 && (
+            <div>
+              <label className="form-label">Proyecto</label>
+              <select className="form-select" value={f.project_id} onChange={e => set('project_id', e.target.value)}>
+                <option value="">Sin proyecto</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
           <div style={{ gridColumn: '1/-1' }}><label className="form-label">Notas</label><textarea className="form-textarea" value={f.notes} onChange={e => set('notes', e.target.value)}/></div>
         </div>
       </div>
@@ -201,6 +215,7 @@ export default function ContactsPage() {
   const supabase = createClient()
   const router   = useRouter()
   const { teamId } = useTeam()
+  const { projects, activeProject } = useProject()
   const [contacts,  setContacts]  = useState<Contact[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -210,8 +225,10 @@ export default function ContactsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    let q = supabase.from('contacts').select('*').order('created_at', { ascending: false })
+    if (activeProject) q = q.eq('project_id', activeProject.id)
     const [{ data: cts }, { data: cos }, { data: { user } }] = await Promise.all([
-      supabase.from('contacts').select('*').order('created_at', { ascending: false }),
+      q,
       supabase.from('companies').select('*').order('name'),
       supabase.auth.getUser(),
     ])
@@ -219,7 +236,7 @@ export default function ContactsPage() {
     setCompanies((cos as Company[] | null) ?? [])
     setUserId(user?.id ?? '')
     setLoading(false)
-  }, [])
+  }, [activeProject])
 
   useEffect(() => { load() }, [load])
 
@@ -234,7 +251,7 @@ export default function ContactsPage() {
 
   const handleCreate = async (data: ContactInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('contacts').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
+    await supabase.from('contacts').insert([{ ...data, user_id: user!.id, team_id: teamId || null, project_id: data.project_id || activeProject?.id || null }] as any)
     setModal(null)
     load()
   }
@@ -254,7 +271,7 @@ export default function ContactsPage() {
   return (
     <>
       <Topbar
-        title="Contactos"
+        title={activeProject ? `Contactos · ${activeProject.name}` : 'Contactos'}
         subtitle={`${contacts.length} contactos · ${contacts.filter(c => c.lead_score >= 75).length} SQL`}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
@@ -313,7 +330,7 @@ export default function ContactsPage() {
 
       {modal === 'create' && (
         <Modal title="Nuevo contacto" onClose={() => setModal(null)}>
-          <ContactForm companies={companies} onSave={handleCreate} onClose={() => setModal(null)}/>
+          <ContactForm companies={companies} projects={projects} defaultProjectId={activeProject?.id} onSave={handleCreate} onClose={() => setModal(null)}/>
         </Modal>
       )}
       {modal === 'csv' && (

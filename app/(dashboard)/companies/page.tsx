@@ -8,6 +8,7 @@ import { Modal } from '@/components/Modal'
 import { EmptyState } from '@/components/EmptyState'
 import { initials, relativeTime } from '@/lib/utils'
 import { useTeam } from '@/hooks/useTeam'
+import { useProject } from '@/hooks/useProject'
 
 const INDUSTRIES = ['SaaS','FinTech','DevTools','E-commerce','Healthcare','Legal','Consulting','Retail','Manufacturing','Otro']
 const SIZES = ['1-50','51-200','201-1000','1000+']
@@ -163,6 +164,7 @@ export default function CompaniesPage() {
   const supabase = createClient()
   const router   = useRouter()
   const { teamId } = useTeam()
+  const { activeProject } = useProject()
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading,   setLoading]   = useState(true)
   const [search,    setSearch]    = useState('')
@@ -171,14 +173,16 @@ export default function CompaniesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    let q = supabase.from('companies').select('*').order('created_at', { ascending: false })
+    if (activeProject) q = q.eq('project_id', activeProject.id)
     const [{ data }, { data: { user } }] = await Promise.all([
-      supabase.from('companies').select('*').order('created_at', { ascending: false }),
+      q,
       supabase.auth.getUser(),
     ])
     setCompanies((data as Company[] | null) ?? [])
     setUserId(user?.id ?? '')
     setLoading(false)
-  }, [])
+  }, [activeProject])
 
   useEffect(() => { load() }, [load])
 
@@ -191,7 +195,7 @@ export default function CompaniesPage() {
 
   const handleCreate = async (data: CompanyInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('companies').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
+    await supabase.from('companies').insert([{ ...data, user_id: user!.id, team_id: teamId || null, project_id: activeProject?.id || null }] as any)
     setModal(null)
     load()
   }
@@ -211,7 +215,7 @@ export default function CompaniesPage() {
   return (
     <>
       <Topbar
-        title="Empresas"
+        title={activeProject ? `Empresas · ${activeProject.name}` : 'Empresas'}
         subtitle={`${companies.length} empresas registradas`}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>

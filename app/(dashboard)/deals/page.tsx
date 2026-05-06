@@ -13,6 +13,8 @@ import { Modal } from '@/components/Modal'
 
 import { fmt, STAGE_META } from '@/lib/utils'
 import { useTeam } from '@/hooks/useTeam'
+import { useProject } from '@/hooks/useProject'
+import type { Project } from '@/lib/supabase/types'
 
 const STAGES = Object.keys(STAGE_META) as DealStage[]
 
@@ -98,12 +100,14 @@ function KanbanColumn({
 // ── Deal form modal ───────────────────────────────────────────────
 
 function DealForm({
-  initial, contacts, companies, defaultStage, onSave, onClose,
+  initial, contacts, companies, projects, defaultStage, defaultProjectId, onSave, onClose,
 }: {
   initial?: Partial<Deal>
   contacts: Contact[]
   companies: Company[]
+  projects: Project[]
   defaultStage?: DealStage
+  defaultProjectId?: string
   onSave: (data: DealInsert) => Promise<void>
   onClose: () => void
 }) {
@@ -117,6 +121,7 @@ function DealForm({
     company_id:     initial?.company_id     ?? '',
     assigned_to:    initial?.assigned_to    ?? '',
     notes:          initial?.notes          ?? '',
+    project_id:     initial?.project_id     ?? defaultProjectId ?? '',
   })
   const [saving, setSaving] = useState(false)
   const set = (k: string, v: string | number) => setF(p => ({ ...p, [k]: v }))
@@ -188,6 +193,15 @@ function DealForm({
             <input className="form-input" placeholder="A. García"
               value={f.assigned_to} onChange={e => set('assigned_to', e.target.value)}/>
           </div>
+          {projects.length > 0 && (
+            <div>
+              <label className="form-label">Proyecto</label>
+              <select className="form-select" value={f.project_id} onChange={e => set('project_id', e.target.value)}>
+                <option value="">Sin proyecto</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
           <div style={{gridColumn:'1/-1'}}>
             <label className="form-label">Notas</label>
             <textarea className="form-textarea" placeholder="Notas internas..."
@@ -210,6 +224,7 @@ function DealForm({
 export default function DealsPage() {
   const supabase = createClient()
   const { teamId } = useTeam()
+  const { projects, activeProject } = useProject()
   const [deals,    setDeals]    = useState<Deal[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [companies,setCompanies]= useState<Company[]>([])
@@ -223,8 +238,10 @@ export default function DealsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    let q = supabase.from('deals').select('*').order('created_at', { ascending: false })
+    if (activeProject) q = q.eq('project_id', activeProject.id)
     const [{ data: ds }, { data: cts }, { data: cos }] = await Promise.all([
-      supabase.from('deals').select('*').order('created_at', { ascending: false }),
+      q,
       supabase.from('contacts').select('*').order('first_name'),
       supabase.from('companies').select('*').order('name'),
     ])
@@ -232,7 +249,7 @@ export default function DealsPage() {
     setContacts((cts as Contact[] | null) ?? [])
     setCompanies((cos as Company[] | null) ?? [])
     setLoading(false)
-  }, [])
+  }, [activeProject])
 
   useEffect(() => { load() }, [load])
 
@@ -274,7 +291,7 @@ export default function DealsPage() {
 
   const handleCreate = async (data: DealInsert) => {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('deals').insert([{ ...data, user_id: user!.id, team_id: teamId || null }] as any)
+    await supabase.from('deals').insert([{ ...data, user_id: user!.id, team_id: teamId || null, project_id: data.project_id || activeProject?.id || null }] as any)
     setModal(null)
     load()
   }
@@ -414,6 +431,8 @@ export default function DealsPage() {
             defaultStage={defaultStage}
             contacts={contacts}
             companies={companies}
+            projects={projects}
+            defaultProjectId={activeProject?.id}
             onSave={handleCreate}
             onClose={() => setModal(null)}
           />
@@ -433,6 +452,7 @@ export default function DealsPage() {
             initial={selected}
             contacts={contacts}
             companies={companies}
+            projects={projects}
             onSave={handleUpdate}
             onClose={() => { setModal(null); setSelected(null) }}
           />

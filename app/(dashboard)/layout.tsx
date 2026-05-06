@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { TeamProvider } from '@/components/TeamProvider'
+import { ProjectProvider } from '@/components/ProjectProvider'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
@@ -23,12 +24,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <TeamProvider teamId={teamId} teamName={teamName} role={role}>
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
-        <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {children}
+      <ProjectProvider>
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+          <Sidebar />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {children}
+          </div>
         </div>
-      </div>
+      </ProjectProvider>
     </TeamProvider>
   )
 }
