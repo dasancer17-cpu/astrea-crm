@@ -15,29 +15,54 @@ interface Member {
   created_at: string
 }
 
+interface Profile {
+  id: string
+  email: string | null
+  full_name: string | null
+}
+
 const ROLE_LABEL: Record<string, string> = { owner: 'Propietario', admin: 'Admin', member: 'Miembro' }
 
 export default function SettingsPage() {
   const supabase = createClient()
   const { teamId, teamName, role } = useTeam()
-  const [members, setMembers] = useState<Member[]>([])
-  const [loading, setLoading] = useState(true)
-  const [email, setEmail] = useState('')
-  const [inviting, setInviting] = useState(false)
+  const [members,    setMembers]    = useState<Member[]>([])
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({})
+  const [loading,    setLoading]    = useState(true)
+  const [email,      setEmail]      = useState('')
+  const [inviting,   setInviting]   = useState(false)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [error,      setError]      = useState('')
 
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     if (!teamId) return
     setLoading(true)
-    const { data } = await supabase
+
+    const { data: membersData } = await supabase
       .from('team_members')
       .select('*')
       .eq('team_id', teamId)
       .order('created_at')
-    setMembers((data as Member[] | null) ?? [])
+
+    const members = (membersData as Member[] | null) ?? []
+
+    // Cargar perfiles de miembros activos para mostrar su email
+    const userIds = members.filter(m => m.user_id).map(m => m.user_id!)
+    const map: Record<string, string> = {}
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('id', userIds)
+      ;(profiles as Profile[] | null)?.forEach(p => {
+        map[p.id] = p.full_name || p.email || p.id.slice(0, 8) + '…'
+      })
+    }
+
+    setMembers(members)
+    setProfileMap(map)
     setLoading(false)
   }, [teamId])
 
@@ -81,6 +106,7 @@ export default function SettingsPage() {
       <Topbar title="Configuración" subtitle="Gestiona tu equipo e invitaciones"/>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+
         {/* Team info */}
         <div className="crm-card" style={{ marginBottom: 1 }}>
           <div className="crm-card-header">
@@ -168,39 +194,46 @@ export default function SettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {members.map(m => (
-                  <tr key={m.id}>
-                    <td>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx)' }}>
-                        {m.user_id ? m.user_id.slice(0, 8) + '…' : '—'}
-                      </div>
-                      {m.invite_email && (
-                        <div style={{ fontSize: 10, color: 'var(--t3)' }}>{m.invite_email}</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`chip ${m.role === 'owner' ? 'chip-g' : m.role === 'admin' ? 'chip-b' : ''}`}>
-                        {ROLE_LABEL[m.role] ?? m.role}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`chip ${m.status === 'active' ? 'chip-g' : 'chip-a'}`}>
-                        {m.status === 'active' ? 'Activo' : 'Pendiente'}
-                      </span>
-                    </td>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--t3)' }}>
-                      {m.joined_at ? relativeTime(m.joined_at) : '—'}
-                    </td>
-                    {isOwnerOrAdmin && (
+                {members.map(m => {
+                  const displayName = m.user_id
+                    ? (profileMap[m.user_id] ?? m.invite_email ?? m.user_id.slice(0, 8) + '…')
+                    : (m.invite_email ?? '—')
+                  return (
+                    <tr key={m.id}>
                       <td>
-                        {m.role !== 'owner' && (
-                          <button className="btn btn-danger" style={{ padding: '3px 8px', fontSize: 10 }}
-                            onClick={() => handleRemove(m.id, m.role)}>✕</button>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx)' }}>
+                          {displayName}
+                        </div>
+                        {m.status === 'pending' && m.invite_email && (
+                          <div style={{ fontSize: 10, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
+                            ⏳ Invitación pendiente
+                          </div>
                         )}
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      <td>
+                        <span className={`chip ${m.role === 'owner' ? 'chip-g' : m.role === 'admin' ? 'chip-b' : ''}`}>
+                          {ROLE_LABEL[m.role] ?? m.role}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`chip ${m.status === 'active' ? 'chip-g' : 'chip-a'}`}>
+                          {m.status === 'active' ? 'Activo' : 'Pendiente'}
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--t3)' }}>
+                        {m.joined_at ? relativeTime(m.joined_at) : '—'}
+                      </td>
+                      {isOwnerOrAdmin && (
+                        <td>
+                          {m.role !== 'owner' && (
+                            <button className="btn btn-danger" style={{ padding: '3px 8px', fontSize: 10 }}
+                              onClick={() => handleRemove(m.id, m.role)}>✕</button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
