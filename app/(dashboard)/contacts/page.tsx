@@ -70,9 +70,13 @@ function ContactForm({
             </select>
           </div>
           <div><label className="form-label">Lead score (0-100)</label><input className="form-input" type="number" min={0} max={100} value={f.lead_score} onChange={e => set('lead_score', parseInt(e.target.value) || 0)}/></div>
-          {projects.length > 0 && (
-            <div style={{ gridColumn: '1/-1' }}>
-              <label className="form-label">Proyecto</label>
+          <div style={{ gridColumn: '1/-1' }}>
+            <label className="form-label">Proyecto</label>
+            {projects.length === 0 ? (
+              <div style={{ fontSize: 11, color: 'var(--t3)', padding: '8px 12px', border: '1px solid var(--b2)', background: 'var(--s2)' }}>
+                Sin proyectos — créalos desde el panel lateral
+              </div>
+            ) : (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                 <button type="button" onClick={() => set('project_id', '')} style={{
                   display: 'flex', alignItems: 'center', gap: 6,
@@ -80,8 +84,7 @@ function ContactForm({
                   border: '1px solid', fontFamily: 'var(--sans)',
                   background: !f.project_id ? 'var(--s3)' : 'transparent',
                   color: !f.project_id ? 'var(--tx)' : 'var(--t3)',
-                  borderColor: !f.project_id ? 'var(--b2)' : 'var(--b2)',
-                  transition: 'all .12s',
+                  borderColor: 'var(--b2)', transition: 'all .12s',
                 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--t3)', flexShrink: 0 }}/>
                   Sin proyecto
@@ -101,8 +104,8 @@ function ContactForm({
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
           <div style={{ gridColumn: '1/-1' }}><label className="form-label">Notas</label><textarea className="form-textarea" value={f.notes} onChange={e => set('notes', e.target.value)}/></div>
         </div>
       </div>
