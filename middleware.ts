@@ -25,16 +25,17 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, search } = request.nextUrl
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
-  const isPublic   = isAuthPage || pathname.startsWith('/join')
+  const isLanding  = pathname === '/'
+  const isPublic   = isAuthPage || isLanding || pathname.startsWith('/join')
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    if (pathname !== '/') url.searchParams.set('redirect', pathname + search)
+    url.searchParams.set('redirect', pathname + search)
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthPage) {
+  if (user && (isAuthPage || isLanding)) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
