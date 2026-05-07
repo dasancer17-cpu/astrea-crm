@@ -71,12 +71,36 @@ function ContactForm({
           </div>
           <div><label className="form-label">Lead score (0-100)</label><input className="form-input" type="number" min={0} max={100} value={f.lead_score} onChange={e => set('lead_score', parseInt(e.target.value) || 0)}/></div>
           {projects.length > 0 && (
-            <div>
+            <div style={{ gridColumn: '1/-1' }}>
               <label className="form-label">Proyecto</label>
-              <select className="form-select" value={f.project_id} onChange={e => set('project_id', e.target.value)}>
-                <option value="">Sin proyecto</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                <button type="button" onClick={() => set('project_id', '')} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: '1px solid', fontFamily: 'var(--sans)',
+                  background: !f.project_id ? 'var(--s3)' : 'transparent',
+                  color: !f.project_id ? 'var(--tx)' : 'var(--t3)',
+                  borderColor: !f.project_id ? 'var(--b2)' : 'var(--b2)',
+                  transition: 'all .12s',
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--t3)', flexShrink: 0 }}/>
+                  Sin proyecto
+                </button>
+                {projects.map(p => (
+                  <button key={p.id} type="button" onClick={() => set('project_id', p.id)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    border: '1px solid', fontFamily: 'var(--sans)',
+                    background: f.project_id === p.id ? p.color + '18' : 'transparent',
+                    color: f.project_id === p.id ? p.color : 'var(--t3)',
+                    borderColor: f.project_id === p.id ? p.color + '55' : 'var(--b2)',
+                    transition: 'all .12s',
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }}/>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           <div style={{ gridColumn: '1/-1' }}><label className="form-label">Notas</label><textarea className="form-textarea" value={f.notes} onChange={e => set('notes', e.target.value)}/></div>
@@ -216,12 +240,13 @@ export default function ContactsPage() {
   const router   = useRouter()
   const { teamId } = useTeam()
   const { projects, activeProject } = useProject()
-  const [contacts,  setContacts]  = useState<Contact[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [search,    setSearch]    = useState('')
-  const [modal,     setModal]     = useState<'create' | 'csv' | null>(null)
-  const [userId,    setUserId]    = useState('')
+  const [contacts,       setContacts]       = useState<Contact[]>([])
+  const [companies,      setCompanies]      = useState<Company[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [search,         setSearch]         = useState('')
+  const [filterProject,  setFilterProject]  = useState('')
+  const [modal,          setModal]          = useState<'create' | 'csv' | null>(null)
+  const [userId,         setUserId]         = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -263,9 +288,13 @@ export default function ContactsPage() {
     load()
   }
 
+  const projectMap = Object.fromEntries(projects.map(p => [p.id, p]))
+
   const filtered = contacts.filter(c => {
     const q = search.toLowerCase()
-    return c.first_name.toLowerCase().includes(q) || c.last_name.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q)
+    const matchSearch = c.first_name.toLowerCase().includes(q) || c.last_name.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q)
+    const matchProject = !filterProject || c.project_id === filterProject
+    return matchSearch && matchProject
   })
 
   return (
@@ -282,9 +311,35 @@ export default function ContactsPage() {
       />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-        <div style={{ marginBottom: 16 }}>
-          <input className="form-input" style={{ maxWidth: 320 }} placeholder="Buscar contactos..."
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+          <input className="form-input" style={{ maxWidth: 280 }} placeholder="Buscar contactos..."
             value={search} onChange={e => setSearch(e.target.value)}/>
+          {projects.length > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              <button onClick={() => setFilterProject('')} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                border: '1px solid', fontFamily: 'var(--sans)',
+                background: !filterProject ? 'var(--s3)' : 'transparent',
+                color: !filterProject ? 'var(--tx)' : 'var(--t3)',
+                borderColor: 'var(--b2)', transition: 'all .12s',
+              }}>Todos</button>
+              {projects.map(p => (
+                <button key={p.id} onClick={() => setFilterProject(filterProject === p.id ? '' : p.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '4px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                  border: '1px solid', fontFamily: 'var(--sans)',
+                  background: filterProject === p.id ? p.color + '18' : 'transparent',
+                  color: filterProject === p.id ? p.color : 'var(--t3)',
+                  borderColor: filterProject === p.id ? p.color + '55' : 'var(--b2)',
+                  transition: 'all .12s',
+                }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0 }}/>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="crm-card">
@@ -307,7 +362,12 @@ export default function ContactsPage() {
                           {initials(`${c.first_name} ${c.last_name}`)}
                         </div>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{c.first_name} {c.last_name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {c.project_id && projectMap[c.project_id] && (
+                              <span title={projectMap[c.project_id].name} style={{ width: 8, height: 8, borderRadius: '50%', background: projectMap[c.project_id].color, flexShrink: 0, display: 'inline-block' }}/>
+                            )}
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{c.first_name} {c.last_name}</span>
+                          </div>
                           {c.email && <div style={{ fontSize: 10, color: 'var(--t3)' }}>{c.email}</div>}
                         </div>
                       </div>
