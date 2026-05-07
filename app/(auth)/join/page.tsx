@@ -20,7 +20,7 @@ function JoinContent() {
       if (!token) { setStatus('error'); setError('Token de invitación no encontrado.'); return }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.replace(`/login?redirect=/join?token=${token}`)
+        router.replace(`/login?redirect=${encodeURIComponent(`/join?token=${token}`)}`)
         return
       }
       setStatus('join')
@@ -52,6 +52,9 @@ function JoinContent() {
             <div style={{ fontSize: 16, fontWeight: 600, color: '#EBEBEB', marginBottom: 8 }}>Unirse al equipo</div>
             <div style={{ fontSize: 12, color: '#666', marginBottom: 28 }}>
               Acepta la invitación para acceder al CRM compartido de tu empresa.
+            </div>
+            <div style={{ fontSize: 11, color: '#444', marginBottom: 20 }}>
+              ¿Primera vez? <Link href={`/register?redirect=${encodeURIComponent(`/join?token=${token}`)}`} style={{ color: '#00E87A', textDecoration: 'none' }}>Crea tu cuenta primero</Link>
             </div>
             {error && (
               <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', color: '#EF4444', padding: '10px 14px', fontSize: 12, marginBottom: 20 }}>

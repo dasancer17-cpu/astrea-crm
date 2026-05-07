@@ -1,17 +1,20 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function RegisterPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
+function RegisterForm() {
+  const router  = useRouter()
+  const params  = useSearchParams()
+  const redirectTo = params.get('redirect') ?? ''
+
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [confirm,  setConfirm]  = useState('')
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [success,  setSuccess]  = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,86 +29,98 @@ export default function RegisterPage() {
   }
 
   if (success) return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-success">
-          <div style={{fontSize:32,marginBottom:12}}>✓</div>
-          <div style={{fontSize:14,fontWeight:600,color:'#EBEBEB',marginBottom:8}}>¡Cuenta creada!</div>
-          <div style={{fontSize:12,color:'#888'}}>Revisa tu email para confirmar tu cuenta y luego inicia sesión.</div>
-          <Link href="/login" className="auth-btn" style={{display:'block',textAlign:'center',textDecoration:'none',marginTop:24}}>
-            ▸ Ir al login
-          </Link>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#070707', padding: 24 }}>
+      <div style={{ background: '#0D0D0D', border: '1px solid #1A1A1A', padding: 40, width: '100%', maxWidth: 400, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, color: '#00E87A', marginBottom: 12 }}>✓</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#EBEBEB', marginBottom: 8 }}>¡Cuenta creada!</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 24 }}>
+          Revisa tu email para confirmar tu cuenta y luego inicia sesión.
         </div>
+        <Link
+          href={redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'}
+          style={{ display: 'block', background: '#00E87A', color: '#000', padding: 11, fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textDecoration: 'none', textAlign: 'center' }}
+        >
+          ▸ Ir al login
+        </Link>
       </div>
-      <style jsx>{`
-        .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#070707;padding:24px;}
-        .auth-card{background:#0D0D0D;border:1px solid #1A1A1A;padding:40px;width:100%;max-width:400px;}
-        .auth-success{text-align:center;color:#00E87A;}
-        .auth-btn{background:#00E87A;color:#000;border:none;padding:11px;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;}
-      `}</style>
     </div>
   )
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <div className="auth-mark">A</div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#070707', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
+          <div style={{ width: 36, height: 36, border: '1.5px solid #00E87A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: '#00E87A' }}>A</div>
           <div>
-            <div className="auth-title">ASTREA CRM</div>
-            <div className="auth-sub">Crea tu cuenta gratis</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, letterSpacing: '.16em', color: '#EBEBEB' }}>ASTREA CRM</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#444', marginTop: 2 }}>Crea tu cuenta gratis</div>
           </div>
         </div>
 
-        {error && <div className="auth-error">{error}</div>}
+        <div style={{ background: '#0D0D0D', border: '1px solid #1A1A1A', padding: 40 }}>
+          {error && (
+            <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', color: '#EF4444', padding: '10px 14px', fontSize: 12, marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleRegister} className="auth-form">
-          <div className="auth-fg">
-            <label className="auth-lbl">Email</label>
-            <input className="auth-inp" type="email" required value={email}
-              onChange={e => setEmail(e.target.value)} placeholder="tu@empresa.com"/>
-          </div>
-          <div className="auth-fg">
-            <label className="auth-lbl">Contraseña</label>
-            <input className="auth-inp" type="password" required minLength={6} value={password}
-              onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"/>
-          </div>
-          <div className="auth-fg">
-            <label className="auth-lbl">Confirmar contraseña</label>
-            <input className="auth-inp" type="password" required value={confirm}
-              onChange={e => setConfirm(e.target.value)} placeholder="Repite la contraseña"/>
-          </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? '⟳ Creando cuenta...' : '▸ Crear cuenta'}
-          </button>
-        </form>
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.11em', textTransform: 'uppercase', color: '#888' }}>Email</label>
+              <input
+                style={{ background: '#131313', border: '1px solid #252525', color: '#EBEBEB', fontSize: 13, padding: '10px 12px', outline: 'none', transition: 'border-color .15s', fontFamily: 'inherit' }}
+                type="email" required value={email}
+                onChange={e => setEmail(e.target.value)}
+                onFocus={e => (e.target.style.borderColor = '#00E87A')}
+                onBlur={e  => (e.target.style.borderColor = '#252525')}
+                placeholder="tu@empresa.com"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.11em', textTransform: 'uppercase', color: '#888' }}>Contraseña</label>
+              <input
+                style={{ background: '#131313', border: '1px solid #252525', color: '#EBEBEB', fontSize: 13, padding: '10px 12px', outline: 'none', transition: 'border-color .15s', fontFamily: 'inherit' }}
+                type="password" required minLength={6} value={password}
+                onChange={e => setPassword(e.target.value)}
+                onFocus={e => (e.target.style.borderColor = '#00E87A')}
+                onBlur={e  => (e.target.style.borderColor = '#252525')}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.11em', textTransform: 'uppercase', color: '#888' }}>Confirmar contraseña</label>
+              <input
+                style={{ background: '#131313', border: '1px solid #252525', color: '#EBEBEB', fontSize: 13, padding: '10px 12px', outline: 'none', transition: 'border-color .15s', fontFamily: 'inherit' }}
+                type="password" required value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                onFocus={e => (e.target.style.borderColor = '#00E87A')}
+                onBlur={e  => (e.target.style.borderColor = '#252525')}
+                placeholder="Repite la contraseña"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ background: '#00E87A', color: '#000', border: 'none', padding: 11, fontSize: 12, fontWeight: 700, letterSpacing: '.06em', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? .5 : 1, transition: 'all .15s', marginTop: 4 }}
+            >
+              {loading ? '⟳ Creando cuenta...' : '▸ Crear cuenta'}
+            </button>
+          </form>
+        </div>
 
-        <p className="auth-footer">
+        <p style={{ textAlign: 'center', fontSize: 11, color: '#444', marginTop: 24 }}>
           ¿Ya tienes cuenta?{' '}
-          <Link href="/login" className="auth-link">Inicia sesión</Link>
+          <Link href={redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'} style={{ color: '#00E87A', textDecoration: 'none' }}>Inicia sesión</Link>
         </p>
       </div>
-
-      <style jsx>{`
-        .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#070707;padding:24px;}
-        .auth-card{background:#0D0D0D;border:1px solid #1A1A1A;padding:40px;width:100%;max-width:400px;}
-        .auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
-        .auth-mark{width:36px;height:36px;border:1.5px solid #00E87A;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:14px;font-weight:700;color:#00E87A;flex-shrink:0;}
-        .auth-title{font-family:monospace;font-size:13px;font-weight:700;letter-spacing:.16em;color:#EBEBEB;}
-        .auth-sub{font-family:monospace;font-size:10px;color:#444;margin-top:2px;}
-        .auth-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#EF4444;padding:10px 14px;font-size:12px;margin-bottom:20px;}
-        .auth-form{display:flex;flex-direction:column;gap:16px;}
-        .auth-fg{display:flex;flex-direction:column;gap:6px;}
-        .auth-lbl{font-size:9px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:#888;}
-        .auth-inp{background:#131313;border:1px solid #252525;color:#EBEBEB;font-size:13px;padding:10px 12px;outline:none;transition:border-color .15s;font-family:inherit;}
-        .auth-inp:focus{border-color:#00E87A;}
-        .auth-btn{background:#00E87A;color:#000;border:none;padding:11px;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:background .15s;margin-top:4px;}
-        .auth-btn:hover{background:#00ff87;}
-        .auth-btn:disabled{opacity:.5;cursor:not-allowed;}
-        .auth-footer{text-align:center;font-size:11px;color:#444;margin-top:24px;}
-        .auth-link{color:#00E87A;text-decoration:none;}
-        .auth-link:hover{text-decoration:underline;}
-      `}</style>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#070707' }}/>}>
+      <RegisterForm />
+    </Suspense>
   )
 }
