@@ -21,9 +21,9 @@ const STAGES = Object.keys(STAGE_META) as DealStage[]
 // ── Deal card (draggable) ─────────────────────────────────────────
 
 function DealCard({
-  deal, color, onClick,
+  deal, color, project, onClick,
 }: {
-  deal: Deal, color: string, onClick: () => void
+  deal: Deal, color: string, project?: Project, onClick: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: deal.id })
   const scCls = deal.probability >= 80 ? 'chip-g' : deal.probability >= 50 ? 'chip-a' : 'chip-b'
@@ -42,6 +42,12 @@ function DealCard({
       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--t3)')}
       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--b2)')}
     >
+      {project && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: project.color, flexShrink: 0 }}/>
+          <span style={{ fontSize: 9, fontWeight: 600, color: project.color, fontFamily: 'var(--mono)', letterSpacing: '.04em' }}>{project.name}</span>
+        </div>
+      )}
       <div style={{fontSize:12,fontWeight:600,marginBottom:3,color:'var(--tx)'}}>{deal.title}</div>
       <div style={{fontFamily:'var(--mono)',fontSize:13,fontWeight:700,marginBottom:5,color}}>{fmt(deal.value)}</div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -60,11 +66,12 @@ function DealCard({
 // ── Kanban column ─────────────────────────────────────────────────
 
 function KanbanColumn({
-  stage, deals, color, onAdd, onCardClick,
+  stage, deals, color, projectMap, onAdd, onCardClick,
 }: {
   stage: DealStage
   deals: Deal[]
   color: string
+  projectMap: Record<string, Project>
   onAdd: () => void
   onCardClick: (d: Deal) => void
 }) {
@@ -85,7 +92,7 @@ function KanbanColumn({
       <SortableContext items={deals.map(d => d.id)} strategy={verticalListSortingStrategy}>
         <div style={{flex:1,overflowY:'auto',padding:7,display:'flex',flexDirection:'column',gap:5}}>
           {deals.map(d => (
-            <DealCard key={d.id} deal={d} color={color} onClick={() => onCardClick(d)}/>
+            <DealCard key={d.id} deal={d} color={color} project={d.project_id ? projectMap[d.project_id] : undefined} onClick={() => onCardClick(d)}/>
           ))}
           <button className="btn btn-ghost" style={{
             width:'100%',fontSize:10,padding:6,color:'var(--t3)',
@@ -193,15 +200,41 @@ function DealForm({
             <input className="form-input" placeholder="A. García"
               value={f.assigned_to} onChange={e => set('assigned_to', e.target.value)}/>
           </div>
-          {projects.length > 0 && (
-            <div>
-              <label className="form-label">Proyecto</label>
-              <select className="form-select" value={f.project_id} onChange={e => set('project_id', e.target.value)}>
-                <option value="">Sin proyecto</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-          )}
+          <div style={{gridColumn:'1/-1'}}>
+            <label className="form-label">Proyecto</label>
+            {projects.length === 0 ? (
+              <div style={{ fontSize: 11, color: 'var(--t3)', padding: '8px 12px', border: '1px solid var(--b2)', background: 'var(--s2)' }}>
+                Sin proyectos — créalos en la sección Proyectos
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                <button type="button" onClick={() => set('project_id', '')} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid',
+                  fontFamily: 'var(--sans)', transition: 'all .12s',
+                  background: !f.project_id ? 'var(--s3)' : 'transparent',
+                  color: !f.project_id ? 'var(--tx)' : 'var(--t3)',
+                  borderColor: 'var(--b2)',
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--t3)', flexShrink: 0 }}/>
+                  Sin proyecto
+                </button>
+                {projects.map(p => (
+                  <button key={p.id} type="button" onClick={() => set('project_id', p.id)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid',
+                    fontFamily: 'var(--sans)', transition: 'all .12s',
+                    background: f.project_id === p.id ? p.color + '18' : 'transparent',
+                    color: f.project_id === p.id ? p.color : 'var(--t3)',
+                    borderColor: f.project_id === p.id ? p.color + '55' : 'var(--b2)',
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }}/>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div style={{gridColumn:'1/-1'}}>
             <label className="form-label">Notas</label>
             <textarea className="form-textarea" placeholder="Notas internas..."
@@ -338,7 +371,8 @@ export default function DealsPage() {
   }, {} as Record<DealStage, Deal[]>)
 
   const totalPipeline = deals.filter(d => d.stage !== 'ganado' && d.stage !== 'perdido').reduce((s,d) => s+d.value, 0)
-  const activeDeal = activeId ? deals.find(d => d.id === activeId) : null
+  const activeDeal  = activeId ? deals.find(d => d.id === activeId) : null
+  const projectMap  = Object.fromEntries(projects.map(p => [p.id, p]))
 
   const hasFilters = search || filterAssigned || filterClose !== 'all'
 
@@ -402,6 +436,7 @@ export default function DealsPage() {
                   stage={stage}
                   deals={hasFilters ? filteredByStage[stage] : dealsByStage[stage]}
                   color={STAGE_META[stage].color}
+                  projectMap={projectMap}
                   onAdd={() => { setDefaultStage(stage); setSelected(null); setModal('create') }}
                   onCardClick={d => { setSelected(d); setModal('edit') }}
                 />

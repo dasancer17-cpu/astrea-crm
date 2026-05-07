@@ -13,6 +13,7 @@ const NAV = [
   { href: '/companies',   icon: '▣', label: 'Empresas'    },
   { href: '/deals',       icon: '▤', label: 'Pipeline'    },
   { href: '/activities',  icon: '◆', label: 'Actividades' },
+  { href: '/projects',    icon: '◈', label: 'Proyectos'   },
   { href: '/reports',     icon: '▧', label: 'Reportes'    },
   { href: '/settings',    icon: '⚙', label: 'Equipo'      },
 ]
